@@ -13,5 +13,6 @@ with open("order_book.json", "r") as f:
 print(es.bulk(body=order_data, index="order"))
 # only 84 out of 100 docs are loaded!
 # "Limit of total fields [1000] in index [order] has been exceeded" :(
+# TODO: define the mapping! and restructure the data
 
 print(es.count(index="order"))
