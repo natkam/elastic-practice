@@ -46,6 +46,6 @@ def generate_order_book(ticker: str) -> typing.Dict:
 if __name__ == "__main__":
     with open("order_book.json", "w") as f:
         for index in range(100):
-            index_info = {"index":{"_id": index}}
+            index_info = {"index": {"_id": index}}
             f.write(json.dumps(index_info) + "\n")
             f.write(json.dumps(generate_order_book(generate_ticker())) + "\n")
