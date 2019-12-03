@@ -1,0 +1,186 @@
+GET test_1/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match_all": {}
+        }
+      ],
+      "filter": {
+        "nested": {
+          "path": "asset",
+          "query": {
+            "match": {
+              "asset.ticker": "AAPL"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+GET test_1/_search
+{
+  "query": {
+    "nested": {
+      "path": "asset.ask",
+      "query": {
+        "bool": {
+          "should": [
+            {
+              "range": {
+                "asset.ask.price": {
+                  "gt": 12,
+                  "lt": 50
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "sort": [
+    {
+      "timestamp": {
+        "order": "desc"
+      }
+    }
+  ]
+}
+
+
+GET test_1/_search
+{
+  "query": {
+    "nested": {
+      "path": "asset.ask",
+      "query": {
+        "range": {
+          "asset.ask.price": {
+            "gt": 12,
+            "lt": 50
+          }
+        }
+      }
+    }
+  },
+  "sort": [
+    {
+      "timestamp": {
+        "order": "desc"
+      }
+    }
+  ]
+}
+
+
+GET test_1/_search
+{
+  "size": 10,
+  "query": {
+    "bool": {
+      "must": {
+        "match_all": {}
+      },
+      "filter": [
+        {
+          "range": {
+            "timestamp": {
+              "gte": "2019-11-28T11:00:00.000000"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "sort": [
+    {
+      "timestamp": {
+        "order": "asc"
+      }
+    }
+  ]
+}
+
+GET test_1/_search
+{
+  "size": 10,
+  "query": {
+    "bool": {
+      "must": {
+        "nested": {
+          "path": "asset.ask",
+          "query": {
+            "range": {
+              "asset.ask.price": {
+                "gt": 12,
+                "lt": 50
+              }
+            }
+          }
+        }
+      },
+      "filter": {
+          "range": {
+            "timestamp": {
+              "gte": "2019-11-28T11:00:00.000000"
+            }
+          }
+        }
+    }
+  },
+  "sort": [
+    {
+      "timestamp": {
+        "order": "desc"
+      }
+    }
+  ]
+}
+
+
+GET test_1/_search
+{
+  "size": 0,
+  "query": {
+    "bool": {
+      "must": {
+        "nested": {
+          "path": "asset.ask",
+          "query": {
+            "range": {
+              "asset.ask.price": {
+                "gt": 12,
+                "lt": 50
+              }
+            }
+          }
+        }
+      },
+      "filter": {
+        "range": {
+          "timestamp": {
+            "gte": "2019-11-28T11:00:00.000000"
+          }
+        }
+      }
+    }
+  },
+  "aggs": {
+    "ask_price": {  # --> this is just a name, not sure what for o_O
+      "nested": {
+        "path": "asset.ask"
+      },
+      "aggs": {
+        "stats": {  # --> this is also just a name, not sure what for o_O
+          "extended_stats": {
+            "field": "asset.ask.price"
+          }
+        }
+      }
+    }
+  }
+}
