@@ -3,3 +3,4 @@ venv/
 __pycache__/
 
 order_book.json
+dump_SPY/

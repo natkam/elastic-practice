@@ -1,18 +1,332 @@
-GET test_1/_search
+GET book/_search
 {
+  "size": 10,
+  "query": {
+    "bool": {
+      "must": {
+        "range": {
+          "askPrice": {
+            "gt": 310.6,
+            "lt": 310.65
+          }
+        }
+      },
+      "filter": {
+        "range": {
+          "timeStamp": {
+            "gte": "2019-12-03T04:51:00.000000-08:00"
+          }
+        }
+      }
+    }
+  },
+  "sort": [
+    {
+      "timeStamp": {
+        "order": "asc"
+      }
+    }
+  ]
+}
+
+
+GET book/_search
+{
+  "size": 100,
   "query": {
     "bool": {
       "must": [
         {
-          "match_all": {}
+          "match": {
+            "symbol": "AN ATVI AIG"
+          }
+        },
+        {
+          "range": {
+            "askPrice": {
+              "gt": 50,
+              "lt": 55
+            }
+          }
         }
       ],
       "filter": {
-        "nested": {
-          "path": "asset",
-          "query": {
-            "match": {
-              "asset.ticker": "AAPL"
+        "range": {
+          "timeStamp": {
+            "gte": "2019-12-04T09:30:00.000000-08:00"
+          }
+        }
+      }
+    }
+  },
+  "sort": [
+    {
+      "timeStamp": {
+        "order": "desc"
+      }
+    }
+  ]
+}
+################################################################
+
+GET book/_search
+{
+  "size": 10,
+  "sort": {
+    "timeStamp": {
+      "order": "desc"
+    }
+  },
+  "query": {
+    "range": {
+      "askPrice": {
+        "gte": 10,
+        "lte": 11
+      }
+    }
+  },
+  "_source": ["symbol", "askPrice", "bidPrice"],
+  "script_fields": {
+    "spread": {
+      "script": {
+        "lang": "expression",
+        "source": "doc['askPrice'] - doc['bidPrice']"
+      }
+    }
+  }
+}
+
+
+GET book/_search?filter_path=hits.total,hits.hits.fields.spread,hits.hits._source
+{
+  "size": 10,
+  "sort": {
+    "timeStamp": {
+      "order": "desc"
+    }
+  },
+  "query": {
+    "range": {
+      "askPrice": {
+        "gte": 10
+      }
+    }
+  },
+  "_source": [
+    "symbol",
+    "askPrice",
+    "bidPrice"
+  ],
+  "script_fields": {
+    "spread": {
+      "script": {
+        "lang": "expression",
+        "source": "doc['askPrice'] - doc['bidPrice']"
+      }
+    }
+  }
+}
+ -> returns:
+    {
+      "hits" : {
+        "total" : {
+          "value" : 10000,
+          "relation" : "gte"
+        },
+        "hits" : [
+          {
+            "_source" : {
+              "symbol" : "BBL",
+              "askPrice" : 44.68,
+              "bidPrice" : 44.64
+            },
+            "fields" : {
+              "spread" : [
+                0.04000091552734375
+              ]
+            }
+          },
+          {
+            "_source" : {
+              "symbol" : "BBL",
+              "askPrice" : 44.68,
+              "bidPrice" : 44.64
+            },
+            "fields" : {
+              "spread" : [
+                0.04000091552734375
+              ]
+            }
+          },
+          ...
+
+
+GET book/_search?filter_path=hits.total,hits.hits._source
+{
+  "sort": {
+    "timeStamp": {
+      "order": "desc"
+    }
+  },
+  "query": {
+        "bool" : {
+            "filter" : {
+                "script" : {
+                    "script" : {
+                        "source": "doc['askPrice'].value - doc['bidPrice'].value > params.gt && doc['askPrice'].value - doc['bidPrice'].value < params.lt",
+                        "lang": "painless"
+                        , "params": {
+                          "gt": 0.2,
+                          "lt": 0.3
+                        }
+                     }
+                }
+            }
+        }
+    },
+  "_source": [
+    "symbol",
+    "askPrice",
+    "bidPrice"
+  ],
+  "collapse": {
+    "field": "symbol.keyword"
+  },
+  "script_fields": {
+    "spread": {
+      "script": {
+        "lang": "expression",
+        "source": "doc['askPrice'] - doc['bidPrice']"
+      }
+    }
+  }
+}
+
+#################################################################
+
+POST tas/_search
+{
+  "size": 0,
+  "query": {
+    "bool": {
+      "must": {
+        "match_all": {}
+      },
+      "filter": {
+        "range": {
+          "timeStamp": {
+            "gte": "2019-12-12T08:00:00.000000-08:00"
+          }
+        }
+      }
+    }
+  },
+  "aggs": {
+    "by_minute": {
+      "date_histogram": {
+        "field": "timeStamp",
+        "calendar_interval": "minute"
+      },
+      "aggs": {
+        "assets": {
+          "terms": {
+            "field": "symbol.keyword"
+          },
+          "aggs": {
+            "open": {
+              "min": {
+                "field": "timeStamp"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "sort": [
+    {
+      "timeStamp": {
+        "order": "desc"
+      }
+    }
+  ],
+  "collapse": {
+    "field": "symbol.keyword"
+  },
+  "_source": ["lastPrice", "timeStamp", "symbol"]
+}
+
+
+POST tas/_search
+{
+  "size": 3,
+  "query": {
+    "bool": {
+      "must": {
+        "term": {
+          "symbol.keyword": "AAPL"
+        }
+      },
+      "filter": {
+        "range": {
+          "timeStamp": {
+            "gte": "now-15m/m"
+          }
+        }
+      }
+    }
+  },
+  "aggs": {
+    "minute_candle": {
+      "date_histogram": {
+        "field": "timeStamp",
+        "calendar_interval": "minute",
+        "format" : "yyyy-MM-dd hh:mm:ss"
+      }
+    }
+  },
+  "sort": {
+    "timeStamp": {
+      "order": "desc"
+    }
+  }
+}
+
+
+POST tas/_search
+{
+  "size": 2,
+  "query": {
+    "term": {
+      "symbol.keyword": "AAPL"
+    }
+  },
+  "aggs": {
+    "last_quarter_of_hr": {
+      "filter": {
+        "range": {
+          "timeStamp": {
+            "gte": "now-17h/h",
+            "lt": "now-16h/h-45m/m"
+          }
+        }
+      },
+      "aggs": {
+        "minute_candles": {
+          "date_histogram": {
+            "field": "timeStamp",
+            "format": "yyyy-MM-dd hh:mm:ss",
+            "calendar_interval": "1m",
+            "extended_bounds": {
+              "min": "now-17h/h",
+              "max": "now-16h/h-45m/m"
+            }
+          },
+          "aggs": {
+            "minute_stats": {
+              "stats": {
+                "field": "lastPrice"
+              }
             }
           }
         }
@@ -21,163 +335,236 @@ GET test_1/_search
   }
 }
 
-GET test_1/_search
-{
-  "query": {
-    "nested": {
-      "path": "asset.ask",
-      "query": {
-        "bool": {
-          "should": [
-            {
-              "range": {
-                "asset.ask.price": {
-                  "gt": 12,
-                  "lt": 50
-                }
-              }
-            }
-          ]
-        }
-      }
-    }
-  },
-  "sort": [
-    {
-      "timestamp": {
-        "order": "desc"
-      }
-    }
-  ]
-}
 
-
-GET test_1/_search
-{
-  "query": {
-    "nested": {
-      "path": "asset.ask",
-      "query": {
-        "range": {
-          "asset.ask.price": {
-            "gt": 12,
-            "lt": 50
-          }
-        }
-      }
-    }
-  },
-  "sort": [
-    {
-      "timestamp": {
-        "order": "desc"
-      }
-    }
-  ]
-}
-
-
-GET test_1/_search
-{
-  "size": 10,
-  "query": {
-    "bool": {
-      "must": {
-        "match_all": {}
-      },
-      "filter": [
-        {
-          "range": {
-            "timestamp": {
-              "gte": "2019-11-28T11:00:00.000000"
-            }
-          }
-        }
-      ]
-    }
-  },
-  "sort": [
-    {
-      "timestamp": {
-        "order": "asc"
-      }
-    }
-  ]
-}
-
-GET test_1/_search
-{
-  "size": 10,
-  "query": {
-    "bool": {
-      "must": {
-        "nested": {
-          "path": "asset.ask",
-          "query": {
-            "range": {
-              "asset.ask.price": {
-                "gt": 12,
-                "lt": 50
-              }
-            }
-          }
-        }
-      },
-      "filter": {
-          "range": {
-            "timestamp": {
-              "gte": "2019-11-28T11:00:00.000000"
-            }
-          }
-        }
-    }
-  },
-  "sort": [
-    {
-      "timestamp": {
-        "order": "desc"
-      }
-    }
-  ]
-}
-
-
-GET test_1/_search
+POST tas/_search
 {
   "size": 0,
   "query": {
-    "bool": {
-      "must": {
-        "nested": {
-          "path": "asset.ask",
-          "query": {
-            "range": {
-              "asset.ask.price": {
-                "gt": 12,
-                "lt": 50
+    "term": {
+      "symbol.keyword": "AAPL"
+    }
+  },
+  "aggs": {
+    "last_quarter_of_hr": {
+      "filter": {
+        "range": {
+          "timeStamp": {
+            "gte": "now-1w+2h/h",
+            "lt": "now-1w+2h/h+15m/m"
+          }
+        }
+      },
+      "aggs": {
+        "minute_candles": {
+          "date_histogram": {
+            "field": "timeStamp",
+            "format": "yyyy-MM-dd hh:mm:ss",
+            "calendar_interval": "1m",
+            "extended_bounds": {
+              "min": "now-1w+2h/h",
+              "max": "now-1w+2h/h+14m/m"
+            }
+          },
+          "aggs": {
+            "minute_stats": {
+              "stats": {
+                "field": "lastPrice"
+              }
+            },
+            "first_candle": {
+              "top_hits": {
+                "size": 1,
+                "sort": [
+                  {
+                    "timeStamp": {
+                      "order": "asc"
+                    }
+                  }
+                ],
+                "_source": {
+                  "includes": [
+                    "timeStamp",
+                    "lastPrice"
+                  ]
+                }
+              }
+            },
+            "last_candle": {
+              "top_hits": {
+                "size": 1,
+                "sort": [
+                  {
+                    "timeStamp": {
+                      "order": "desc"
+                    }
+                  }
+                ],
+                "_source": {
+                  "includes": [
+                    "timeStamp",
+                    "lastPrice"
+                  ]
+                }
               }
             }
           }
         }
+      }
+    }
+  }
+}
+
+
+POST tas/_search
+{
+  "size": 0,
+  "aggs": {
+    "assets": {
+      "terms": {
+        "field": "symbol.keyword",
+        "size": "50"
       },
-      "filter": {
-        "range": {
-          "timestamp": {
-            "gte": "2019-11-28T11:00:00.000000"
+      "aggs": {
+        "last_quarter_of_hr": {
+          "filter": {
+            "range": {
+              "timeStamp": {
+                "gte": "now-1w+2h/h",
+                "lt": "now-1w+2h/h+15m/m"
+              }
+            }
+          },
+          "aggs": {
+            "minute_candles": {
+              "date_histogram": {
+                "field": "timeStamp",
+                "format": "yyyy-MM-dd hh:mm:ss",
+                "calendar_interval": "1m",
+                "extended_bounds": {
+                  "min": "now-1w+2h/h",
+                  "max": "now-1w+2h/h+14m/m"
+                }
+              },
+              "aggs": {
+                "minute_stats": {
+                  "stats": {
+                    "field": "lastPrice"
+                  }
+                },
+                "first_in_candle": {
+                  "top_hits": {
+                    "size": 1,
+                    "sort": [
+                      {
+                        "timeStamp": {
+                          "order": "asc"
+                        }
+                      }
+                    ],
+                    "_source": {
+                      "includes": [
+                        "timeStamp",
+                        "lastPrice"
+                      ]
+                    }
+                  }
+                },
+                "last_in_candle": {
+                  "top_hits": {
+                    "size": 1,
+                    "sort": [
+                      {
+                        "timeStamp": {
+                          "order": "desc"
+                        }
+                      }
+                    ],
+                    "_source": {
+                      "includes": [
+                        "timeStamp",
+                        "lastPrice"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
     }
-  },
+  }
+}
+
+
+POST tas/_search
+{
+  "size": 0,
   "aggs": {
-    "ask_price": {  # --> this is just a name, not sure what for o_O
-      "nested": {
-        "path": "asset.ask"
+    "by_asset": {
+      "filters": {"filters":
+        {"asdf": {"term": {"symbol.keyword": "AMC"}}}
       },
       "aggs": {
-        "stats": {  # --> this is also just a name, not sure what for o_O
-          "extended_stats": {
-            "field": "asset.ask.price"
+        "time_period_filter": {
+          "filter": {
+            "range": {
+              "timeStamp": {
+                "gte": "now-1d-2h",
+                "lt": "now"
+              }
+            }
+          },
+          "aggs": {
+            "candles": {
+              "date_histogram": {
+                "field": "timeStamp",
+                "format": "hh:mm:ss",
+                "fixed_interval": "5m",
+                "offset": "+1m"  # offsets each bucket by 1 minute
+              },
+              "aggs": {
+                "candle_stats": {
+                  "stats": {
+                    "field": "lastPrice"
+                  }
+                },
+                "open_candle": {
+                  "top_hits": {
+                    "size": 1,
+                    "sort": {
+                      "timeStamp": {
+                        "order": "asc"
+                      }
+                    },
+                    "_source": {
+                      "includes": [
+                        "timeStamp",
+                        "lastPrice",
+                        "symbol"
+                      ]
+                    }
+                  }
+                },
+                "close_candle": {
+                  "top_hits": {
+                    "size": 1,
+                    "sort": {
+                      "timeStamp": {
+                        "order": "desc"
+                      }
+                    },
+                    "_source": {
+                      "includes": [
+                        "timeStamp",
+                        "lastPrice",
+                        "symbol"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
